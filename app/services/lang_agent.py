@@ -1,9 +1,12 @@
 from langchain_experimental.agents.agent_toolkits.pandas.base import create_pandas_dataframe_agent
 from langchain_community.chat_models import ChatOpenAI
-from app.utils.parse_json import parse_json_string
 import pandas as pd
 import os
 from dotenv import load_dotenv
+import re
+import json
+from app.utils.output_parser import JsonOutputParser
+
 
 load_dotenv()
 
@@ -44,7 +47,7 @@ def create_flight_agent():
         base_url="https://openrouter.ai/api/v1", 
     )
 
-    return create_pandas_dataframe_agent(llm, merged_df, verbose=True, allow_dangerous_code=True,handle_parsing_errors=True,)
+    return create_pandas_dataframe_agent(llm, merged_df, verbose=True, allow_dangerous_code=True,output_parser=JsonOutputParser(),)
 
 # Create agent
 flight_agent = create_flight_agent()
@@ -54,8 +57,37 @@ def ask_flight_agent(query: str) -> dict:
    print("🧠 Agent received query:", query)
     
 
-   formatted_query = query,
+   prompt = f"""
+   You are a helpful data analyst.
+   Use the given DataFrame to answer the following question.
 
-   raw_result = flight_agent.run(formatted_query)
+   Respond ONLY in JSON format compatible with Highcharts:
+   {{
+     "chartType": "<column|line|bar|pie>",
+     "title": "<title of the chart>",
+     "xAxis": [<list of categories for X-axis>],
+     "yAxisTitle": "<title for Y-axis>",
+     "series": [
+       {{
+         "name": "<series name>",
+         "data": [<list of values aligned with xAxis>]
+       }}
+     ]
+   }}
+
+   If the query does not require a chart, respond with:
+   {{ "type": "text", "answer": "<summary>" }}
+
+   Question: {query}
+   """
+
+
+   raw_result = flight_agent.run(prompt)
    print("✅ Agent raw result:", raw_result)
-   return raw_result if raw_result else None
+   
+   cleaned = re.sub(r"```(?:json)?\n?(.*?)```", r"\1", raw_result, flags=re.DOTALL).strip()
+   try:
+        return cleaned
+   except json.JSONDecodeError as e:
+        print("❌ JSON decode failed:", e)
+        return {"type": "text", "answer": "Failed to parse chart response."}
