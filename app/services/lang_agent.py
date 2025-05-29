@@ -22,26 +22,19 @@ def create_flight_agent():
 
     bookings_df["airline_id"] = bookings_df["airline_id"].astype(str)
     airline_mapping_df["airline_id"] = airline_mapping_df["airline_id"].astype(str)
-
+    
     merged_df = bookings_df.merge(airline_mapping_df, on="airline_id", how="left")
-
-    print("🔍 Sample merged rows:\n", merged_df.head())
-
-    # LLM setup
     llm = ChatOpenAI(
         temperature=0,
         model="deepseek/deepseek-chat", 
-        # model="deepseek/deepseek-chat:free",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         base_url="https://openrouter.ai/api/v1", 
     )
 
     return create_pandas_dataframe_agent(llm, merged_df, verbose=True, allow_dangerous_code=True,handle_parsing_errors=True, output_parser=JsonOutputParser())
 
-# Create agent
 flight_agent = create_flight_agent()
 
-# Handle queries
 def ask_flight_agent(query: str) -> dict:
    
    prompt = f"""
@@ -88,12 +81,12 @@ def ask_flight_agent(query: str) -> dict:
 
 
    raw_result = flight_agent.run(prompt)
-   print("✅ Agent raw result:", raw_result)
-   
+   print("Agent raw result:", raw_result)
+
    cleaned = re.sub(r"```(?:json)?\n?(.*?)```", r"\1", raw_result, flags=re.DOTALL).strip()
    cleaned = cleaned.strip("`")
    cleaned = cleaned.replace("True", "true").replace("False", "false").replace("None", "null")
-   print("🔍 Cleaned result:", cleaned)
+   print("Cleaned result:", cleaned)
    try:
         return json.loads(cleaned)
    except json.JSONDecodeError as e:
