@@ -9,4 +9,4 @@ class QueryRequest(BaseModel):
 
 @router.post("/query")
 async def query_data(req: QueryRequest):
-    return llm_agent(req.query) # Ensure the response is in JSON format
+    return llm_agent(req.query)

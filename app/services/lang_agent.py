@@ -5,10 +5,7 @@ import os
 from dotenv import load_dotenv
 import re
 import json
-from app.utils.output_parser import JsonOutputParser
-
 from langchain_core.output_parsers import JsonOutputParser
-
 load_dotenv()
 
 def create_flight_agent():
@@ -19,9 +16,6 @@ def create_flight_agent():
 
     mapping_path = os.path.normpath(os.path.join(current_dir, "..", "data", "airline_id_to_name.csv"))
     airline_mapping_df = pd.read_csv(mapping_path)
-
-    print("📄 bookings_df columns:", bookings_df.columns.tolist())
-    print("📄 airline_mapping_df columns:", airline_mapping_df.columns.tolist())
 
     bookings_df.rename(columns={"airlie_id": "airline_id"}, inplace=True)
     airline_mapping_df.rename(columns={"airlie_id": "airline_id"}, inplace=True)
@@ -37,6 +31,7 @@ def create_flight_agent():
     llm = ChatOpenAI(
         temperature=0,
         model="deepseek/deepseek-chat", 
+        # model="deepseek/deepseek-chat:free",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         base_url="https://openrouter.ai/api/v1", 
     )
@@ -56,14 +51,14 @@ def ask_flight_agent(query: str) -> dict:
    1. For charts, use:
    {{
      "type": "chart",
-     "chartType": "<column|line|bar|pie>",
+     "chartType": "<pie|bar",
      "title": "<title of the chart>",
      "xAxis": [<list of categories for X-axis>],
      "yAxisTitle": "<title for Y-axis>",
      "series": [
        {{
          "name": "<series name>",
-         "data": [<list of values aligned with xAxis>]
+         "data": [list of list of x and y values, e.g. [[x1, y1], [x2, y2], ...]],>]
        }}
      ]
    }}
@@ -85,6 +80,9 @@ def ask_flight_agent(query: str) -> dict:
    4. If answer is not available:
    {{ "type": "text", "answer": "Sorry, I couldn't find an answer." }}
 
+   give format that not give OUTPUT_PARSER_ERROR
+
+
    Question: {query}
    """
 
@@ -99,5 +97,4 @@ def ask_flight_agent(query: str) -> dict:
    try:
         return json.loads(cleaned)
    except json.JSONDecodeError as e:
-        print("❌ JSON decode failed:", e)
-        return {"type": "text", "answer": "Failed to parse chart response."}
+        return {"type": "text", "answer": "Sorry, I couldn't the response."}
